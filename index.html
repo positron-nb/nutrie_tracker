@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriTrack — Meal Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0e0c;
+      --surface: #1a1916;
+      --surface2: #242220;
+      --border: #2e2c28;
+      --accent: #e8c547;
+      --accent2: #f0a040;
+      --green: #6fcf83;
+      --blue: #5eb8e8;
+      --red: #e87a5e;
+      --text: #f0ede8;
+      --muted: #7a7670;
+      --card-radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,14,12,0.88);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+    .logo span { color: var(--accent); }
+
+    .header-pills {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .pill {
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--surface);
+    }
+    .pill.cal { border-color: var(--accent); color: var(--accent); }
+    .pill.pro { border-color: var(--green); color: var(--green); }
+    .pill.fib { border-color: var(--blue); color: var(--blue); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 4rem 2rem 2rem;
+    }
+    .hero-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+    }
+    .hero h1 em { font-style: normal; color: var(--accent); }
+    .hero p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── LAYOUT ── */
+    .app-layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 2rem auto 4rem;
+      padding: 0 1.5rem;
+    }
+
+    @media (max-width: 860px) {
+      .app-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── FOOD GRID ── */
+    .food-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.875rem;
+    }
+
+    .food-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1rem 1.1rem;
+      transition: border-color 0.2s, transform 0.15s;
+      cursor: default;
+    }
+    .food-card:hover { border-color: #3e3c38; transform: translateY(-1px); }
+    .food-card.active { border-color: var(--accent); background: rgba(232,197,71,0.05); }
+
+    .food-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .food-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .food-icon { font-size: 1.1rem; }
+
+    .food-per {
+      font-size: 0.68rem;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 2px 7px;
+      border-radius: 99px;
+    }
+
+    .food-macros {
+      display: flex;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+      margin-bottom: 0.875rem;
+    }
+    .macro-badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .macro-badge.cal { background: rgba(232,197,71,0.12); color: var(--accent); }
+    .macro-badge.pro { background: rgba(111,207,131,0.12); color: var(--green); }
+    .macro-badge.fib { background: rgba(94,184,232,0.12); color: var(--blue); }
+
+    .food-input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .qty-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .qty-input:focus { border-color: var(--accent); }
+    .qty-input::placeholder { color: var(--muted); }
+
+    .qty-unit {
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 28px;
+    }
+
+    .add-btn {
+      background: var(--accent);
+      color: #0f0e0c;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .add-btn:hover { background: #f0d458; transform: scale(1.03); }
+    .add-btn:active { transform: scale(0.97); }
+
+    /* ── SIDEBAR ── */
+    .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* ── TOTALS CARD ── */
+    .totals-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1.5rem;
+      position: sticky;
+      top: 80px;
+    }
+
+    .totals-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .clear-btn {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .clear-btn:hover { color: var(--red); border-color: var(--red); }
+
+    .stat-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-of-type { border-bottom: none; }
+
+    .stat-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .stat-dot.cal { background: var(--accent); }
+    .stat-dot.pro { background: var(--green); }
+    .stat-dot.fib { background: var(--blue); }
+
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+    .stat-value.cal { color: var(--accent); }
+    .stat-value.pro { color: var(--green); }
+    .stat-value.fib { color: var(--blue); }
+    .stat-unit { font-size: 0.7rem; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+
+    /* Progress bars */
+    .progress-wrap { margin: 0.4rem 0 1rem; }
+    .progress-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .progress-bar {
+      height: 5px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+    .progress-fill.cal { background: var(--accent); }
+    .progress-fill.pro { background: var(--green); }
+    .progress-fill.fib { background: var(--blue); }
+
+    /* ── MEAL LOG ── */
+    .meal-log {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1.25rem;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+    .meal-log::-webkit-scrollbar { width: 4px; }
+    .meal-log::-webkit-scrollbar-track { background: transparent; }
+    .meal-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .log-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .log-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 1.5rem 0;
+    }
+
+    .log-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn 0.2s ease;
+      gap: 0.5rem;
+    }
+    .log-item:last-child { border-bottom: none; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .log-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .log-qty { font-size: 0.72rem; color: var(--muted); margin-right: 0.5rem; }
+    .log-stats {
+      display: flex;
+      gap: 0.4rem;
+      font-size: 0.68rem;
+      flex-shrink: 0;
+    }
+    .log-cal { color: var(--accent); }
+    .log-pro { color: var(--green); }
+    .log-fib { color: var(--blue); }
+
+    .log-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .log-remove:hover { color: var(--red); background: rgba(232,122,94,0.12); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      z-index: 999;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast .t-accent { color: var(--accent); font-family: 'Syne', sans-serif; font-weight: 700; }
+    .toast .t-green { color: var(--green); }
+    .toast .t-blue { color: var(--blue); }
+
+    /* ── SEARCH BAR ── */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      padding: 10px 16px 10px 40px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--muted); }
+    .search-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 1rem;
+      pointer-events: none;
+    }
+
+    /* ── CATEGORY TABS ── */
+    .cat-tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .cat-tab {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .cat-tab.active, .cat-tab:hover {
+      background: var(--accent);
+      color: #0f0e0c;
+      border-color: var(--accent);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border);
+      position: relative;
+      z-index: 1;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Nutri<span>Track</span></div>
+  <div class="header-pills">
+    <span class="pill cal">kcal</span>
+    <span class="pill pro">protein</span>
+    <span class="pill fib">fiber</span>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-tag">Meal Nutrition Calculator</div>
+  <h1>Know what's on<br/><em>your plate</em></h1>
+  <p>Enter the weight of each food item and instantly calculate your meal's calories, protein, and fiber.</p>
+</div>
+
+<div class="app-layout">
+  <!-- LEFT: Food Cards -->
+  <div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="text" placeholder="Search foods…" id="searchInput" oninput="filterFoods()" />
+    </div>
+
+    <div class="cat-tabs" id="catTabs">
+      <button class="cat-tab active" onclick="filterCat('all', this)">All</button>
+      <button class="cat-tab" onclick="filterCat('grains', this)">Grains</button>
+      <button class="cat-tab" onclick="filterCat('protein', this)">Protein</button>
+      <button class="cat-tab" onclick="filterCat('dairy', this)">Dairy</button>
+      <button class="cat-tab" onclick="filterCat('legumes', this)">Legumes</button>
+      <button class="cat-tab" onclick="filterCat('fats', this)">Fats</button>
+    </div>
+
+    <p class="section-label">Food Items — per 100g unless noted</p>
+    <div class="food-grid" id="foodGrid"></div>
+  </div>
+
+  <!-- RIGHT: Sidebar -->
+  <div class="sidebar">
+    <!-- Totals -->
+    <div class="totals-card">
+      <div class="totals-title">
+        Meal Totals
+        <button class="clear-btn" onclick="clearAll()">Clear all</button>
+      </div>
+
+      <div class="stat-row">
+        <span class="stat-label"><span class="stat-dot cal"></span>Calories</span>
+        <div style="text-align:right">
+          <span class="stat-value cal" id="totalCal">0</span>
+          <span class="stat-unit"> kcal</span>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label-row">
+          <span>Daily target</span><span id="calPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill cal" id="calBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="stat-row">
+        <span class="stat-label"><span class="stat-dot pro"></span>Protein</span>
+        <div style="text-align:right">
+          <span class="stat-value pro" id="totalPro">0</span>
+          <span class="stat-unit"> g</span>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label-row">
+          <span>Daily target</span><span id="proPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill pro" id="proBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="stat-row">
+        <span class="stat-label"><span class="stat-dot fib"></span>Fiber</span>
+        <div style="text-align:right">
+          <span class="stat-value fib" id="totalFib">0</span>
+          <span class="stat-unit"> g</span>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label-row">
+          <span>Daily target</span><span id="fibPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill fib" id="fibBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Meal Log -->
+    <div class="meal-log">
+      <div class="log-title">📋 ADDED TO MEAL</div>
+      <div id="logList"><div class="log-empty">No items added yet.<br/>Enter weight and click Add ↓</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Built for health tracking · All values are approximate averages ·
+  <a href="https://github.com/" target="_blank">GitHub</a>
+</footer>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// FOOD DATABASE
+// per 100g (or per unit for eggs/tsp)
+// { name, icon, cal, pro, fib, cat, unit, unitLabel }
+// ─────────────────────────────────────────────
+const FOODS = [
+  // GRAINS
+  { id:'rice_cooked',  name:'Rice (cooked)',    icon:'🍚', cal:130, pro:2.7, fib:0.4, cat:'grains', unit:'g',   unitLabel:'g' },
+  { id:'rice_raw',     name:'Rice (raw)',       icon:'🌾', cal:365, pro:7.1, fib:0.6, cat:'grains', unit:'g',   unitLabel:'g' },
+  { id:'roti',         name:'Roti / Chapati',   icon:'🫓', cal:297, pro:9.0, fib:3.9, cat:'grains', unit:'g',   unitLabel:'g' },
+  { id:'brown_rice',   name:'Brown Rice (cooked)',icon:'🍚',cal:112, pro:2.6, fib:1.8, cat:'grains', unit:'g',   unitLabel:'g' },
+  { id:'poha',         name:'Poha (cooked)',    icon:'🥣', cal:130, pro:2.2, fib:0.6, cat:'grains', unit:'g',   unitLabel:'g' },
+  { id:'oats',         name:'Oats (cooked)',    icon:'🥣', cal:71,  pro:2.5, fib:1.7, cat:'grains', unit:'g',   unitLabel:'g' },
+
+  // PROTEIN — Animal
+  { id:'chicken_breast',name:'Chicken Breast (cooked)',icon:'🍗',cal:165,pro:31,fib:0,cat:'protein',unit:'g',unitLabel:'g'},
+  { id:'chicken_whole', name:'Chicken (whole, cooked)',icon:'🍗',cal:239,pro:27,fib:0,cat:'protein',unit:'g',unitLabel:'g'},
+  { id:'egg_boiled',    name:'Egg (boiled)',     icon:'🥚', cal:155, pro:13, fib:0,   cat:'protein', unit:'count', unitLabel:'eggs', perUnit:50, calPer:78, proPer:6.5, fibPer:0 },
+  { id:'omelette',      name:'Omelette',         icon:'🍳', cal:154, pro:11, fib:0,   cat:'protein', unit:'count', unitLabel:'eggs', perUnit:50, calPer:90,  proPer:7,   fibPer:0 },
+  { id:'egg_white',     name:'Egg White',        icon:'🥚', cal:52,  pro:11, fib:0,   cat:'protein', unit:'g',   unitLabel:'g' },
+
+  // PROTEIN — Plant
+  { id:'paneer',       name:'Paneer',           icon:'🧀', cal:265, pro:18.3,fib:0,  cat:'dairy',  unit:'g',   unitLabel:'g' },
+  { id:'soyabean',     name:'Soyabean (boiled)',icon:'🫘', cal:172, pro:16.6,fib:6.0, cat:'protein',unit:'g',   unitLabel:'g' },
+  { id:'soya_chunks',  name:'Soya Chunks (cooked)',icon:'🫘',cal:345,pro:52,fib:13,  cat:'protein',unit:'g',   unitLabel:'g' },
+  { id:'tofu',         name:'Tofu',             icon:'🫙', cal:76,  pro:8,  fib:0.3, cat:'protein', unit:'g',   unitLabel:'g' },
+
+  // LEGUMES
+  { id:'daal_cooked',  name:'Dal (cooked)',     icon:'🍲', cal:116, pro:8,  fib:4.0, cat:'legumes', unit:'g',   unitLabel:'g' },
+  { id:'rajma',        name:'Rajma (cooked)',   icon:'🫘', cal:127, pro:8.7,fib:6.4, cat:'legumes', unit:'g',   unitLabel:'g' },
+  { id:'black_chana',  name:'Black Chickpeas (cooked)',icon:'⚫',cal:164,pro:8.9,fib:7.6,cat:'legumes',unit:'g',unitLabel:'g'},
+  { id:'kabuli_chana', name:'Kabuli Chana (cooked)',icon:'🟡',cal:164,pro:8.9,fib:7.6,cat:'legumes',unit:'g',unitLabel:'g'},
+  { id:'moong_dal',    name:'Moong Dal (cooked)',icon:'🟢',cal:105, pro:7.0,fib:4.1, cat:'legumes', unit:'g',   unitLabel:'g' },
+  { id:'masoor_dal',   name:'Masoor Dal (cooked)',icon:'🍲',cal:116,pro:9.0,fib:3.8, cat:'legumes', unit:'g',   unitLabel:'g' },
+  { id:'chana_dal',    name:'Chana Dal (cooked)',icon:'🟡',cal:150, pro:8.5,fib:3.5, cat:'legumes', unit:'g',   unitLabel:'g' },
+
+  // DAIRY
+  { id:'curd',         name:'Curd / Dahi',      icon:'🥛', cal:61,  pro:3.5,fib:0,   cat:'dairy',  unit:'g',   unitLabel:'g' },
+  { id:'milk',         name:'Milk (full fat)',  icon:'🥛', cal:61,  pro:3.2,fib:0,   cat:'dairy',  unit:'ml',  unitLabel:'ml' },
+  { id:'greek_yogurt', name:'Greek Yogurt',     icon:'🥛', cal:59,  pro:10, fib:0,   cat:'dairy',  unit:'g',   unitLabel:'g' },
+
+  // FATS
+  { id:'ghee',         name:'Ghee (1 tsp)',     icon:'🧈', cal:45,  pro:0,  fib:0,   cat:'fats', unit:'tsp',  unitLabel:'tsp', perUnit:1, calPer:45, proPer:0, fibPer:0 },
+  { id:'oil',          name:'Cooking Oil (1 tsp)',icon:'🫙',cal:40, pro:0,  fib:0,   cat:'fats', unit:'tsp',  unitLabel:'tsp', perUnit:1, calPer:40, proPer:0, fibPer:0 },
+  { id:'butter',       name:'Butter',           icon:'🧈', cal:717, pro:0.8,fib:0,   cat:'fats',  unit:'g',   unitLabel:'g' },
+  { id:'almond',       name:'Almonds',          icon:'🌰', cal:579, pro:21.2,fib:12.5,cat:'protein',unit:'g', unitLabel:'g' },
+  { id:'peanut',       name:'Peanuts (boiled)', icon:'🥜', cal:318, pro:13.7,fib:8.5,cat:'protein',unit:'g',  unitLabel:'g' },
+];
+
+// Daily targets for progress bars
+const TARGETS = { cal: 2000, pro: 60, fib: 25 };
+
+let mealItems = [];
+let currentCat = 'all';
+let currentSearch = '';
+
+// ─────────────────────────────────────────────
+// RENDER FOOD GRID
+// ─────────────────────────────────────────────
+function renderFoodGrid() {
+  const grid = document.getElementById('foodGrid');
+  let filtered = FOODS.filter(f => {
+    const matchCat = currentCat === 'all' || f.cat === currentCat;
+    const matchSearch = f.name.toLowerCase().includes(currentSearch.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  grid.innerHTML = filtered.map(f => {
+    const isCount = f.unit === 'count' || f.unit === 'tsp';
+    const placeholder = isCount
+      ? (f.unit === 'tsp' ? '# tsp' : '# eggs')
+      : '0';
+    const unitDisplay = isCount ? f.unitLabel : f.unitLabel;
+
+    // macros display line
+    let calLabel, proLabel, fibLabel;
+    if (isCount) {
+      calLabel = `${f.calPer} kcal/unit`;
+      proLabel = `${f.proPer}g P`;
+      fibLabel = `${f.fibPer}g F`;
+    } else {
+      calLabel = `${f.cal} kcal`;
+      proLabel = `${f.pro}g P`;
+      fibLabel = `${f.fib}g F`;
+    }
+
+    return `
+      <div class="food-card" id="card_${f.id}">
+        <div class="food-card-top">
+          <span class="food-name">
+            <span class="food-icon">${f.icon}</span>${f.name}
+          </span>
+          <span class="food-per">per 100g</span>
+        </div>
+        <div class="food-macros">
+          <span class="macro-badge cal">${calLabel}</span>
+          <span class="macro-badge pro">${proLabel}</span>
+          <span class="macro-badge fib">${fibLabel}</span>
+        </div>
+        <div class="food-input-row">
+          <input class="qty-input" type="number" min="0" step="${isCount?1:10}"
+            id="input_${f.id}" placeholder="${placeholder}" />
+          <span class="qty-unit">${unitDisplay}</span>
+          <button class="add-btn" onclick="addFood('${f.id}')">Add</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// ADD FOOD
+// ─────────────────────────────────────────────
+function addFood(id) {
+  const food = FOODS.find(f => f.id === id);
+  const inputEl = document.getElementById('input_' + id);
+  const val = parseFloat(inputEl.value);
+  if (!val || val <= 0) { showToast('⚠️ Enter a valid amount'); return; }
+
+  let cal, pro, fib, qtyLabel;
+
+  if (food.unit === 'count') {
+    // eggs / count-based
+    cal = food.calPer * val;
+    pro = food.proPer * val;
+    fib = food.fibPer * val;
+    qtyLabel = `${val} ${val === 1 ? 'egg' : 'eggs'}`;
+  } else if (food.unit === 'tsp') {
+    cal = food.calPer * val;
+    pro = food.proPer * val;
+    fib = food.fibPer * val;
+    qtyLabel = `${val} tsp`;
+  } else {
+    // per 100g
+    cal = (food.cal / 100) * val;
+    pro = (food.pro / 100) * val;
+    fib = (food.fib / 100) * val;
+    qtyLabel = `${val}${food.unitLabel}`;
+  }
+
+  const item = {
+    id: Date.now(),
+    foodId: id,
+    name: food.name,
+    icon: food.icon,
+    qty: val,
+    qtyLabel,
+    cal: Math.round(cal),
+    pro: parseFloat(pro.toFixed(1)),
+    fib: parseFloat(fib.toFixed(1)),
+  };
+
+  mealItems.push(item);
+  inputEl.value = '';
+  document.getElementById('card_' + id).classList.add('active');
+  setTimeout(() => document.getElementById('card_' + id)?.classList.remove('active'), 600);
+
+  updateTotals();
+  renderLog();
+  showToast(`${food.icon} <span class="t-accent">${food.name}</span> — <span class="t-green">${item.cal} kcal</span> · <span class="t-blue">${item.pro}g protein</span>`);
+}
+
+// ─────────────────────────────────────────────
+// REMOVE ITEM
+// ─────────────────────────────────────────────
+function removeItem(itemId) {
+  mealItems = mealItems.filter(i => i.id !== itemId);
+  updateTotals();
+  renderLog();
+}
+
+// ─────────────────────────────────────────────
+// CLEAR ALL
+// ─────────────────────────────────────────────
+function clearAll() {
+  mealItems = [];
+  updateTotals();
+  renderLog();
+  showToast('🗑️ Meal cleared');
+}
+
+// ─────────────────────────────────────────────
+// UPDATE TOTALS
+// ─────────────────────────────────────────────
+function updateTotals() {
+  const totCal = mealItems.reduce((s, i) => s + i.cal, 0);
+  const totPro = mealItems.reduce((s, i) => s + i.pro, 0);
+  const totFib = mealItems.reduce((s, i) => s + i.fib, 0);
+
+  document.getElementById('totalCal').textContent = totCal;
+  document.getElementById('totalPro').textContent = totPro.toFixed(1);
+  document.getElementById('totalFib').textContent = totFib.toFixed(1);
+
+  const calPct = Math.min(100, Math.round((totCal / TARGETS.cal) * 100));
+  const proPct = Math.min(100, Math.round((totPro / TARGETS.pro) * 100));
+  const fibPct = Math.min(100, Math.round((totFib / TARGETS.fib) * 100));
+
+  document.getElementById('calBar').style.width = calPct + '%';
+  document.getElementById('proBar').style.width = proPct + '%';
+  document.getElementById('fibBar').style.width = fibPct + '%';
+  document.getElementById('calPct').textContent = calPct + '%';
+  document.getElementById('proPct').textContent = proPct + '%';
+  document.getElementById('fibPct').textContent = fibPct + '%';
+}
+
+// ─────────────────────────────────────────────
+// RENDER LOG
+// ─────────────────────────────────────────────
+function renderLog() {
+  const list = document.getElementById('logList');
+  if (mealItems.length === 0) {
+    list.innerHTML = '<div class="log-empty">No items added yet.<br/>Enter weight and click Add ↓</div>';
+    return;
+  }
+  list.innerHTML = [...mealItems].reverse().map(i => `
+    <div class="log-item">
+      <span class="log-name">${i.icon} ${i.name}</span>
+      <span class="log-qty">${i.qtyLabel}</span>
+      <span class="log-stats">
+        <span class="log-cal">${i.cal}k</span>
+        <span class="log-pro">${i.pro}P</span>
+        <span class="log-fib">${i.fib}F</span>
+      </span>
+      <button class="log-remove" onclick="removeItem(${i.id})" title="Remove">✕</button>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─────────────────────────────────────────────
+// FILTER
+// ─────────────────────────────────────────────
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFoodGrid();
+}
+function filterFoods() {
+  currentSearch = document.getElementById('searchInput').value;
+  renderFoodGrid();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+renderFoodGrid();
+renderLog();
+</script>
+</body>
+</html>
